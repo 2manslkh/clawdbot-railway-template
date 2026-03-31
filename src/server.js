@@ -1345,6 +1345,7 @@ proxy.on("error", (err, _req, res) => {
 // not just the /setup routes.  Healthcheck is excluded so Railway probes work.
 function requireDashboardAuth(req, res, next) {
   if (req.path === "/healthz" || req.path === "/setup/healthz") return next();
+  if (req.path.startsWith("/hooks")) return next(); // allow OpenClaw webhook endpoints to bypass dashboard auth
   if (!SETUP_PASSWORD) return next(); // no password configured → open
   const header = req.headers.authorization || "";
   const [scheme, encoded] = header.split(" ");
@@ -1371,6 +1372,10 @@ function attachGatewayAuthHeader(req) {
     req.headers.authorization = `Bearer ${OPENCLAW_GATEWAY_TOKEN}`;
   }
 }
+
+proxy.on("proxyReqWs", (_proxyReq, req) => {
+  attachGatewayAuthHeader(req);
+});
 
 app.use(requireDashboardAuth, async (req, res) => {
   // If not configured, force users to /setup for any non-setup routes.
@@ -1467,22 +1472,9 @@ const server = app.listen(PORT, "0.0.0.0", async () => {
 });
 
 server.on("upgrade", async (req, socket, head) => {
-  // --- WebSocket password protection ---
-  if (SETUP_PASSWORD) {
-    const header = req.headers.authorization || "";
-    const [scheme, encoded] = header.split(" ");
-    let authed = false;
-    if (scheme === "Basic" && encoded) {
-      const decoded = Buffer.from(encoded, "base64").toString("utf8");
-      const idx = decoded.indexOf(":");
-      const password = idx >= 0 ? decoded.slice(idx + 1) : "";
-      authed = password === SETUP_PASSWORD;
-    }
-    if (!authed) {
-      socket.destroy();
-      return;
-    }
-  }
+  // Note: browsers cannot attach arbitrary HTTP headers (including Authorization: Basic)
+  // in WebSocket handshakes. Do not enforce dashboard Basic auth at the upgrade layer.
+  // The gateway authenticates at the protocol layer and we inject the gateway token below.
 
   if (!isConfigured()) {
     socket.destroy();
