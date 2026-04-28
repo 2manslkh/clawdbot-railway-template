@@ -369,165 +369,337 @@ app.get("/setup", requireSetupAuth, (_req, res) => {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>OpenClaw Setup</title>
   <style>
-    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; margin: 2rem; max-width: 900px; }
-    .card { border: 1px solid #ddd; border-radius: 12px; padding: 1.25rem; margin: 1rem 0; }
-    label { display:block; margin-top: 0.75rem; font-weight: 600; }
-    input, select { width: 100%; padding: 0.6rem; margin-top: 0.25rem; }
-    button { padding: 0.8rem 1.2rem; border-radius: 10px; border: 0; background: #111; color: #fff; font-weight: 700; cursor: pointer; }
-    code { background: #f6f6f6; padding: 0.1rem 0.3rem; border-radius: 6px; }
-    .muted { color: #555; }
+    :root {
+      color-scheme: light;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #dbe3ef;
+      --text: #0f172a;
+      --muted: #475569;
+      --primary: #111827;
+      --primary-soft: #e5e7eb;
+      --success: #166534;
+      --success-bg: #dcfce7;
+      --warning: #92400e;
+      --warning-bg: #fef3c7;
+      --danger: #991b1b;
+      --danger-bg: #fee2e2;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    .page { max-width: 980px; margin: 0 auto; padding: 2rem 1rem 3rem; }
+    .hero { margin-bottom: 1.25rem; }
+    .hero h1 { margin: 0 0 0.5rem; font-size: 2rem; }
+    .hero p { margin: 0; color: var(--muted); line-height: 1.5; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.25rem; margin: 1rem 0; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04); }
+    .card h2, .card h3 { margin-top: 0; }
+    .muted { color: var(--muted); }
+    .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.76rem; color: var(--muted); font-weight: 700; }
+    .status-head, .result-head { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    .pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 0.28rem 0.7rem; font-size: 0.85rem; font-weight: 700; background: var(--primary-soft); color: var(--text); }
+    .pill-success { background: var(--success-bg); color: var(--success); }
+    .pill-warning { background: var(--warning-bg); color: var(--warning); }
+    .pill-danger { background: var(--danger-bg); color: var(--danger); }
+    .quick-links { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
+    .quick-links a { color: var(--text); text-decoration: none; font-weight: 600; }
+    .tabs { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1rem 0; }
+    .tab-btn { appearance: none; border: 1px solid var(--border); background: #fff; color: var(--text); border-radius: 999px; padding: 0.7rem 1rem; font-weight: 700; cursor: pointer; }
+    .tab-active { background: var(--text); color: #fff; border-color: var(--text); }
+    .tab-panel[hidden] { display: none; }
+    .section-stack > .card:first-child { margin-top: 0; }
+    .section-stack > .card:last-child { margin-bottom: 0; }
+    label { display:block; margin-top: 0.85rem; font-weight: 600; }
+    input, select, textarea { width: 100%; padding: 0.75rem 0.8rem; margin-top: 0.35rem; border-radius: 12px; border: 1px solid var(--border); background: #fff; color: var(--text); }
+    textarea { min-height: 260px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    button { appearance: none; border: 0; background: var(--primary); color: #fff; padding: 0.8rem 1.1rem; border-radius: 12px; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: 0.7; cursor: wait; }
+    .secondary-btn { background: #1f2937; }
+    .ghost-btn { background: #e2e8f0; color: var(--text); }
+    .danger-btn { background: #7f1d1d; }
+    .button-row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+    .grid { display: grid; gap: 1rem; }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .field-note { margin-top: 0.35rem; font-size: 0.92rem; color: var(--muted); line-height: 1.45; }
+    .summary-box, .notice-box { border-radius: 14px; padding: 0.95rem 1rem; background: #f8fafc; border: 1px solid var(--border); }
+    .summary-box strong, .notice-box strong { display: block; margin-bottom: 0.35rem; }
+    .inline-row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: end; }
+    .inline-row > * { flex: 1; min-width: 200px; }
+    .channel-card { border: 1px solid var(--border); border-radius: 14px; padding: 1rem; margin-top: 0.85rem; }
+    .channel-card h3 { margin-bottom: 0.25rem; }
+    .result-card { border-width: 1px; }
+    .result-success { border-color: #86efac; background: #f0fdf4; }
+    .result-danger { border-color: #fca5a5; background: #fef2f2; }
+    .result-warning { border-color: #fcd34d; background: #fffbeb; }
+    .result-neutral { border-color: var(--border); background: #f8fafc; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #0f172a; color: #e2e8f0; border-radius: 14px; padding: 1rem; margin-top: 0.75rem; overflow-x: auto; }
+    code { background: #f1f5f9; padding: 0.1rem 0.35rem; border-radius: 6px; }
+    details summary { cursor: pointer; font-weight: 700; }
+    .device-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.85rem 0; border-bottom: 1px solid var(--border); }
+    .device-row:last-child { border-bottom: 0; }
+    .danger-zone { border-color: #fecaca; background: #fff7f7; }
+    .spacer-top { margin-top: 1rem; }
+    @media (max-width: 720px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .page { padding: 1.25rem 0.9rem 2rem; }
+      .hero h1 { font-size: 1.65rem; }
+    }
   </style>
 </head>
 <body>
-  <h1>OpenClaw Setup</h1>
-  <p class="muted">This wizard configures OpenClaw by running the same onboarding command it uses in the terminal, but from the browser.</p>
+  <main class="page">
+    <section class="hero">
+      <div class="eyebrow">Railway setup wizard</div>
+      <h1>Set up OpenClaw</h1>
+      <p>This page is meant to get a fresh deployment working fast. The main setup flow stays simple, while pairing, recovery, and low-level tools live in their own sections.</p>
+    </section>
 
-  <div class="card">
-    <h2>Status</h2>
-    <div id="status">Loading...</div>
-    <div id="statusDetails" class="muted" style="margin-top:0.5rem"></div>
-    <div style="margin-top: 0.75rem">
-      <a href="/openclaw" target="_blank">Open OpenClaw UI</a>
-      &nbsp;|&nbsp;
-      <a href="/setup/export" target="_blank">Download backup (.tar.gz)</a>
-    </div>
+    <section class="card">
+      <div class="status-head">
+        <div>
+          <h2 style="margin-bottom:0.25rem">Deployment status</h2>
+          <div id="status" class="muted">Loading...</div>
+        </div>
+        <div id="statusPill" class="pill">Checking</div>
+      </div>
+      <div id="statusDetails" class="muted spacer-top"></div>
+      <div class="quick-links">
+        <a href="/openclaw" target="_blank">Open OpenClaw UI</a>
+        <a href="/setup/export" target="_blank">Download backup (.tar.gz)</a>
+      </div>
+    </section>
 
-    <div style="margin-top: 0.75rem">
-      <div class="muted" style="margin-bottom:0.25rem"><strong>Import backup</strong> (advanced): restores into <code>/data</code> and restarts the gateway.</div>
-      <input id="importFile" type="file" accept=".tar.gz,application/gzip" />
-      <button id="importRun" style="background:#7c2d12; margin-top:0.5rem">Import</button>
-      <pre id="importOut" style="white-space:pre-wrap"></pre>
-    </div>
-  </div>
+    <nav class="tabs" aria-label="Setup sections">
+      <button class="tab-btn tab-active" data-tab-target="setup" aria-selected="true">Setup</button>
+      <button class="tab-btn" data-tab-target="pairing" aria-selected="false">Pairing &amp; Devices</button>
+      <button class="tab-btn" data-tab-target="advanced" aria-selected="false">Advanced</button>
+    </nav>
 
-  <div class="card">
-    <h2>Debug console</h2>
-    <p class="muted">Run a small allowlist of safe commands (no shell). Useful for debugging and recovery.</p>
+    <section class="tab-panel" data-tab-panel="setup">
+      <div class="section-stack">
+        <section class="card">
+          <div class="eyebrow">Step 1</div>
+          <h2>Choose your AI provider</h2>
+          <p class="muted">Pick the provider family first, then the exact auth method. Non-interactive methods stay visible by default.</p>
 
-    <div style="display:flex; gap:0.5rem; align-items:center">
-      <select id="consoleCmd" style="flex: 1">
-        <option value="gateway.restart">gateway.restart (wrapper-managed)</option>
-        <option value="gateway.stop">gateway.stop (wrapper-managed)</option>
-        <option value="gateway.start">gateway.start (wrapper-managed)</option>
-        <option value="openclaw.status">openclaw status</option>
-        <option value="openclaw.health">openclaw health</option>
-        <option value="openclaw.doctor">openclaw doctor</option>
-        <option value="openclaw.doctor.fix">openclaw doctor --fix</option>
-        <option value="openclaw.update">openclaw update</option>
-        <option value="openclaw.logs.tail">openclaw logs --tail N</option>
-        <option value="openclaw.config.get">openclaw config get &lt;path&gt;</option>
-        <option value="openclaw.version">openclaw --version</option>
-        <option value="openclaw.devices.list">openclaw devices list</option>
-        <option value="openclaw.devices.approve">openclaw devices approve &lt;requestId&gt;</option>
-        <option value="openclaw.plugins.list">openclaw plugins list</option>
-        <option value="openclaw.plugins.enable">openclaw plugins enable &lt;name&gt;</option>
-      </select>
-      <input id="consoleArg" placeholder="Optional arg (e.g. 200, gateway.port)" style="flex: 1" />
-      <button id="consoleRun" style="background:#0f172a">Run</button>
-    </div>
-    <pre id="consoleOut" style="white-space:pre-wrap"></pre>
-  </div>
+          <label>Provider group</label>
+          <select id="authGroup">
+            <option>Loading providers…</option>
+          </select>
 
-  <div class="card">
-    <h2>Config editor (advanced)</h2>
-    <p class="muted">Edits the full config file on disk (JSON5). Saving creates a timestamped <code>.bak-*</code> backup and restarts the gateway.</p>
-    <div class="muted" id="configPath"></div>
-    <textarea id="configText" style="width:100%; height: 260px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;"></textarea>
-    <div style="margin-top:0.5rem">
-      <button id="configReload" style="background:#1f2937">Reload</button>
-      <button id="configSave" style="background:#111; margin-left:0.5rem">Save</button>
-    </div>
-    <pre id="configOut" style="white-space:pre-wrap"></pre>
-  </div>
+          <label>Auth method</label>
+          <select id="authChoice">
+            <option>Loading methods…</option>
+          </select>
+          <div id="authChoiceMode" class="field-note">Choose an auth method</div>
+          <label class="field-note" style="display:block; margin-top:0.75rem; font-weight:500;">
+            <input type="checkbox" id="showAdvancedAuth" style="width:auto; margin-right:0.45rem; transform: translateY(1px);" />
+            Show interactive OAuth / device-flow options
+          </label>
 
-  <div class="card">
-    <h2>1) Model/auth provider</h2>
-    <p class="muted">Matches the groups shown in the terminal onboarding.</p>
-    <label>Provider group</label>
-    <select id="authGroup">
-      <option>Loading providers…</option>
-    </select>
+          <label>Key / token (only if required)</label>
+          <input id="authSecret" type="password" placeholder="Paste API key / token if this method needs one" />
+          <div id="authChoiceHelp" class="field-note">Pick an auth method to see what it needs.</div>
 
-    <label>Auth method</label>
-    <select id="authChoice">
-      <option>Loading methods…</option>
-    </select>
+          <label>Wizard flow</label>
+          <select id="flow">
+            <option value="quickstart">quickstart</option>
+            <option value="advanced">advanced</option>
+            <option value="manual">manual</option>
+          </select>
+        </section>
 
-    <label>Key / Token (if required)</label>
-    <input id="authSecret" type="password" placeholder="Paste API key / token if applicable" />
+        <section class="card">
+          <div class="eyebrow">Step 2</div>
+          <h2>Optional channels</h2>
+          <p class="muted">Skip these if you just want the core UI first. You can add channels later inside OpenClaw.</p>
 
-    <label>Wizard flow</label>
-    <select id="flow">
-      <option value="quickstart">quickstart</option>
-      <option value="advanced">advanced</option>
-      <option value="manual">manual</option>
-    </select>
-  </div>
+          <div class="channel-card">
+            <h3>Telegram</h3>
+            <div class="field-note">Paste your bot token if you want Telegram working right away.</div>
+            <label>Telegram bot token</label>
+            <input id="telegramToken" type="password" placeholder="123456:ABC..." />
+            <div class="field-note">Get it from <code>@BotFather</code> with <code>/newbot</code>.</div>
+          </div>
 
-  <div class="card">
-    <h2>2) Optional: Channels</h2>
-    <p class="muted">You can also add channels later inside OpenClaw, but this helps you get messaging working immediately.</p>
+          <div class="channel-card">
+            <h3>Discord</h3>
+            <div class="field-note">Useful if you want the bot in a server immediately after setup.</div>
+            <label>Discord bot token</label>
+            <input id="discordToken" type="password" placeholder="Bot token" />
+            <div class="field-note"><strong>Important:</strong> enable <strong>MESSAGE CONTENT INTENT</strong> in the Bot settings or the bot can fail on startup.</div>
+          </div>
 
-    <label>Telegram bot token (optional)</label>
-    <input id="telegramToken" type="password" placeholder="123456:ABC..." />
-    <div class="muted" style="margin-top: 0.25rem">
-      Get it from BotFather: open Telegram, message <code>@BotFather</code>, run <code>/newbot</code>, then copy the token.
-    </div>
+          <div class="channel-card">
+            <h3>Slack</h3>
+            <div class="field-note">Provide bot/app tokens only if you already have a Slack app prepared.</div>
+            <label>Slack bot token</label>
+            <input id="slackBotToken" type="password" placeholder="xoxb-..." />
 
-    <label>Discord bot token (optional)</label>
-    <input id="discordToken" type="password" placeholder="Bot token" />
-    <div class="muted" style="margin-top: 0.25rem">
-      Get it from the Discord Developer Portal: create an application, add a Bot, then copy the Bot Token.<br/>
-      <strong>Important:</strong> Enable <strong>MESSAGE CONTENT INTENT</strong> in Bot → Privileged Gateway Intents, or the bot will crash on startup.
-    </div>
+            <label>Slack app token</label>
+            <input id="slackAppToken" type="password" placeholder="xapp-..." />
+          </div>
 
-    <label>Slack bot token (optional)</label>
-    <input id="slackBotToken" type="password" placeholder="xoxb-..." />
+          <details class="spacer-top">
+            <summary>Advanced: custom OpenAI-compatible provider</summary>
+            <p class="muted">Use this for Ollama, LM Studio, vLLM, or hosted OpenAI-compatible proxies that need a custom base URL.</p>
+            <label>Provider id (e.g. ollama, deepseek, myproxy)</label>
+            <input id="customProviderId" placeholder="ollama" />
 
-    <label>Slack app token (optional)</label>
-    <input id="slackAppToken" type="password" placeholder="xapp-..." />
-  </div>
+            <label>Base URL (must include /v1)</label>
+            <input id="customProviderBaseUrl" placeholder="http://127.0.0.1:11434/v1" />
 
-  <div class="card">
-    <h2>2b) Advanced: Custom OpenAI-compatible provider (optional)</h2>
-    <p class="muted">Use this to configure an OpenAI-compatible API that requires a custom base URL (e.g. Ollama, vLLM, LM Studio, hosted proxies). You usually set the API key as a Railway variable and reference it here.</p>
+            <label>API</label>
+            <select id="customProviderApi">
+              <option value="openai-completions">openai-completions</option>
+              <option value="openai-responses">openai-responses</option>
+            </select>
 
-    <label>Provider id (e.g. ollama, deepseek, myproxy)</label>
-    <input id="customProviderId" placeholder="ollama" />
+            <label>API key env var name (optional)</label>
+            <input id="customProviderApiKeyEnv" placeholder="OLLAMA_API_KEY" />
 
-    <label>Base URL (must include /v1, e.g. http://host:11434/v1)</label>
-    <input id="customProviderBaseUrl" placeholder="http://127.0.0.1:11434/v1" />
+            <label>Optional model id to register</label>
+            <input id="customProviderModelId" placeholder="llama3.1:8b" />
+          </details>
+        </section>
 
-    <label>API (openai-completions or openai-responses)</label>
-    <select id="customProviderApi">
-      <option value="openai-completions">openai-completions</option>
-      <option value="openai-responses">openai-responses</option>
-    </select>
+        <section class="card">
+          <div class="eyebrow">Step 3</div>
+          <h2>Review and run setup</h2>
+          <div id="runSummary" class="summary-box">Provider: loading... | Auth: loading... | Flow: quickstart | Channels: none yet</div>
+          <div class="button-row spacer-top">
+            <button id="run">Run setup</button>
+          </div>
+          <p class="field-note">After setup, use the Pairing &amp; Devices tab if a channel asks for approval.</p>
+        </section>
 
-    <label>API key env var name (optional, e.g. OLLAMA_API_KEY). Leave blank for no key.</label>
-    <input id="customProviderApiKeyEnv" placeholder="OLLAMA_API_KEY" />
+        <section id="runResultCard" class="card result-card result-neutral" hidden>
+          <div class="result-head">
+            <div>
+              <h3 id="runResultTitle" style="margin-bottom:0.25rem">Result</h3>
+              <div id="runResultBody" class="muted"></div>
+            </div>
+          </div>
+          <div id="runActions" class="button-row spacer-top" hidden>
+            <a id="openUiAction" href="/openclaw" target="_blank" hidden><button type="button">Open OpenClaw UI</button></a>
+            <button id="showLogsBtn" type="button" class="ghost-btn">Show technical log</button>
+          </div>
+          <div id="logWrap" hidden>
+            <pre id="log"></pre>
+          </div>
+        </section>
+      </div>
+    </section>
 
-    <label>Optional model id to register (e.g. llama3.1:8b)</label>
-    <input id="customProviderModelId" placeholder="" />
-  </div>
+    <section class="tab-panel" data-tab-panel="pairing" hidden>
+      <div class="section-stack">
+        <section class="card">
+          <h2>Approve a pairing code</h2>
+          <p class="muted">Use this when a direct message flow says pairing is required and gives you a short code.</p>
+          <div class="inline-row">
+            <div>
+              <label>Channel</label>
+              <select id="pairingChannel">
+                <option value="telegram">telegram</option>
+                <option value="discord">discord</option>
+              </select>
+            </div>
+            <div>
+              <label>Pairing code</label>
+              <input id="pairingCode" placeholder="3EY4PUYS" />
+            </div>
+            <div>
+              <button id="pairingApprove" type="button">Approve pairing</button>
+            </div>
+          </div>
+          <pre id="pairingOut"></pre>
+        </section>
 
-  <div class="card">
-    <h2>3) Run onboarding</h2>
-    <button id="run">Run setup</button>
-    <button id="pairingApprove" style="background:#1f2937; margin-left:0.5rem">Approve pairing</button>
-    <button id="reset" style="background:#444; margin-left:0.5rem">Reset setup</button>
-    <pre id="log" style="white-space:pre-wrap"></pre>
-    <p class="muted">Reset deletes the OpenClaw config file so you can rerun onboarding. Pairing approval lets you grant DM access when dmPolicy=pairing.</p>
+        <section class="card">
+          <h2>Pending device requests</h2>
+          <p class="muted">This is the quicker path when the UI has already generated a device request and you just need to approve it.</p>
+          <div class="button-row">
+            <button id="devicesRefresh" type="button" class="secondary-btn">Refresh pending devices</button>
+          </div>
+          <div id="devicesList" class="spacer-top muted">No device check has been run yet.</div>
+        </section>
+      </div>
+    </section>
 
-    <details style="margin-top: 0.75rem">
-      <summary><strong>Pairing helper</strong> (for “disconnected (1008): pairing required”)</summary>
-      <p class="muted">This lists pending device requests and lets you approve them without SSH.</p>
-      <button id="devicesRefresh" style="background:#0f172a">Refresh pending devices</button>
-      <div id="devicesList" class="muted" style="margin-top:0.5rem"></div>
-    </details>
-  </div>
+    <section class="tab-panel" data-tab-panel="advanced" hidden>
+      <div class="section-stack">
+        <section class="card">
+          <h2>Backup and recovery</h2>
+          <div class="notice-box">
+            <strong>Import backup</strong>
+            Restores files into <code>/data</code> and restarts the gateway. Use only for migration or recovery.
+          </div>
+          <label>Backup archive</label>
+          <input id="importFile" type="file" accept=".tar.gz,application/gzip" />
+          <div class="button-row spacer-top">
+            <button id="importRun" type="button" class="danger-btn">Import backup</button>
+          </div>
+          <pre id="importOut"></pre>
+        </section>
 
-  <script src="/setup/app.js"></script>
+        <section class="card">
+          <h2>Config editor</h2>
+          <p class="muted">Edits the full config on disk. Saving creates a timestamped backup and restarts the gateway.</p>
+          <div id="configPath" class="field-note"></div>
+          <textarea id="configText"></textarea>
+          <div class="button-row spacer-top">
+            <button id="configReload" type="button" class="secondary-btn">Reload</button>
+            <button id="configSave" type="button">Save and restart</button>
+          </div>
+          <pre id="configOut"></pre>
+        </section>
+
+        <section class="card">
+          <h2>Debug console</h2>
+          <p class="muted">Runs a small allowlist of safe commands without shell access. Good for diagnosis when setup goes sideways.</p>
+          <div class="grid grid-2">
+            <div>
+              <label>Command</label>
+              <select id="consoleCmd">
+                <option value="gateway.restart">gateway.restart (wrapper-managed)</option>
+                <option value="gateway.stop">gateway.stop (wrapper-managed)</option>
+                <option value="gateway.start">gateway.start (wrapper-managed)</option>
+                <option value="openclaw.status">openclaw status</option>
+                <option value="openclaw.health">openclaw health</option>
+                <option value="openclaw.doctor">openclaw doctor</option>
+                <option value="openclaw.doctor.fix">openclaw doctor --fix</option>
+                <option value="openclaw.update">openclaw update</option>
+                <option value="openclaw.logs.tail">openclaw logs --tail N</option>
+                <option value="openclaw.config.get">openclaw config get &lt;path&gt;</option>
+                <option value="openclaw.version">openclaw --version</option>
+                <option value="openclaw.devices.list">openclaw devices list</option>
+                <option value="openclaw.devices.approve">openclaw devices approve &lt;requestId&gt;</option>
+                <option value="openclaw.plugins.list">openclaw plugins list</option>
+                <option value="openclaw.plugins.enable">openclaw plugins enable &lt;name&gt;</option>
+              </select>
+            </div>
+            <div>
+              <label>Optional arg</label>
+              <input id="consoleArg" placeholder="200, gateway.port, plugin-name..." />
+            </div>
+          </div>
+          <div class="button-row spacer-top">
+            <button id="consoleRun" type="button" class="secondary-btn">Run command</button>
+          </div>
+          <pre id="consoleOut"></pre>
+        </section>
+
+        <section class="card danger-zone">
+          <h2>Danger zone</h2>
+          <p class="muted">Reset deletes the OpenClaw config file so onboarding can run again. Use this only when you want a true fresh start.</p>
+          <div class="button-row">
+            <button id="reset" type="button" class="danger-btn">Reset setup</button>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <script src="/setup/app.js"></script>
+  </main>
 </body>
 </html>`);
 });
