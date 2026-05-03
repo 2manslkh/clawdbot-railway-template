@@ -38,6 +38,11 @@ RUN set -eux; \
     sed -i -E 's/"openclaw"[[:space:]]*:[[:space:]]*"workspace:[^"]+"/"openclaw": "*"/g' "$f"; \
   done
 
+# Upstream may enable pnpm's minimum release age gate, which can block Railway
+# builds when a transitive dependency was published only hours ago. Disable it
+# in this build container so deploys stay reproducible.
+RUN printf 'minimum-release-age=0\n' >> /root/.npmrc
+
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm build
 ENV OPENCLAW_PREFER_PNPM=1
