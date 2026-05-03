@@ -39,11 +39,9 @@ RUN set -eux; \
   done
 
 # Upstream may enable pnpm's minimum release age gate, which can block Railway
-# builds when a transitive dependency was published only hours ago. Disable it
-# in this build container so deploys stay reproducible.
-RUN printf 'minimum-release-age=0\n' >> /root/.npmrc
-
-RUN pnpm install --no-frozen-lockfile
+# builds when a transitive dependency was published only hours ago. Override it
+# explicitly on the install command so repository-level pnpm config cannot win.
+RUN pnpm --config.minimum-release-age=0 install --no-frozen-lockfile
 RUN pnpm build
 ENV OPENCLAW_PREFER_PNPM=1
 RUN pnpm ui:install && pnpm ui:build

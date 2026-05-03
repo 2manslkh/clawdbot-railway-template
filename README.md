@@ -34,7 +34,7 @@ Recommended:
 
 Optional:
 - `OPENCLAW_GATEWAY_TOKEN` — if not set, the wrapper generates one (not ideal). In a template, set it using a generated secret.
-- The Docker build disables pnpm's `minimum-release-age` gate inside the build container to avoid transient Railway deploy failures from freshly-published transitive dependencies.
+- The Docker build explicitly runs pnpm with `--config.minimum-release-age=0` to avoid transient Railway deploy failures from freshly-published transitive dependencies in upstream OpenClaw.
 
 Notes:
 - This template pins OpenClaw to a released version by default via `OPENCLAW_GIT_REF`.
