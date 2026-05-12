@@ -50,6 +50,9 @@ RUN pnpm ui:install && pnpm ui:build
 # Runtime image
 FROM node:22-bookworm
 ENV NODE_ENV=production
+# Railway runs containers as root; openclaw guards against accidental root
+# usage on dev machines, so opt in explicitly for this intentional container run.
+ENV OPENCLAW_ALLOW_ROOT=1
 
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
