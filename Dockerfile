@@ -74,6 +74,13 @@ ENV PNPM_HOME=/data/pnpm
 ENV PNPM_STORE_DIR=/data/pnpm-store
 ENV PATH="/data/npm/bin:/data/pnpm:${PATH}"
 
+# Persist $HOME on the Railway volume so CLI credentials (claude, codex, gh, etc.)
+# survive container restarts. Without this, HOME defaults to /root, which is
+# ephemeral — users would have to re-authenticate after every redeploy/restart.
+# The wrapper creates this directory at startup since the volume is empty on
+# first boot.
+ENV HOME=/data/home
+
 WORKDIR /app
 
 # Wrapper deps

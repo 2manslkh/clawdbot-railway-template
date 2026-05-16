@@ -1574,6 +1574,20 @@ const server = app.listen(PORT, "0.0.0.0", async () => {
     fs.chmodSync(STATE_DIR, 0o700);
   } catch {}
 
+  // Ensure $HOME exists on the persistent volume. The Dockerfile sets
+  // HOME=/data/home so CLI credentials (claude, codex, gh, ...) persist across
+  // container restarts; the volume is empty on first boot so we must create it
+  // here before any subprocess writes to it.
+  const homeDir = process.env.HOME;
+  if (homeDir) {
+    try {
+      fs.mkdirSync(homeDir, { recursive: true });
+      fs.chmodSync(homeDir, 0o700);
+    } catch (err) {
+      console.warn(`[wrapper] failed to prepare HOME=${homeDir}: ${String(err)}`);
+    }
+  }
+
   console.log(`[wrapper] gateway token: ${OPENCLAW_GATEWAY_TOKEN ? "(set)" : "(missing)"}`);
   console.log(`[wrapper] gateway target: ${GATEWAY_TARGET}`);
   if (!SETUP_PASSWORD) {
