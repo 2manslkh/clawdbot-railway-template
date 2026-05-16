@@ -79,6 +79,22 @@ const GATEWAY_TARGET = `http://${INTERNAL_GATEWAY_HOST}:${INTERNAL_GATEWAY_PORT}
 const OPENCLAW_ENTRY = process.env.OPENCLAW_ENTRY?.trim() || "/openclaw/dist/entry.js";
 const OPENCLAW_NODE = process.env.OPENCLAW_NODE?.trim() || "node";
 
+// Gateway memory watchdog: the OpenClaw gateway is a long-running Node process and
+// can accumulate RSS over time. On Railway, sustained memory directly drives cost,
+// so we recycle the gateway subprocess when it exceeds a configurable RSS budget.
+// Set OPENCLAW_GATEWAY_MEMORY_LIMIT_MB=0 to disable.
+const GATEWAY_MEMORY_LIMIT_MB = Number.parseInt(
+  process.env.OPENCLAW_GATEWAY_MEMORY_LIMIT_MB ?? "1536",
+  10,
+);
+const GATEWAY_MEMORY_CHECK_INTERVAL_MS = Number.parseInt(
+  process.env.OPENCLAW_GATEWAY_MEMORY_CHECK_INTERVAL_MS ?? "60000",
+  10,
+);
+// Minimum spacing between watchdog-triggered restarts; prevents restart thrash if
+// the gateway leaks faster than it can warm up after a restart.
+const GATEWAY_MEMORY_MIN_RESTART_INTERVAL_MS = 5 * 60 * 1000;
+
 function clawArgs(args) {
   return [OPENCLAW_ENTRY, ...args];
 }
@@ -269,6 +285,51 @@ async function restartGateway() {
     gatewayProc = null;
   }
   return ensureGatewayRunning();
+}
+
+let lastGatewayWatchdogRestartAt = 0;
+let gatewayWatchdogTimer = null;
+
+function readProcessRssBytes(pid) {
+  try {
+    const status = fs.readFileSync(`/proc/${pid}/status`, "utf8");
+    const match = status.match(/^VmRSS:\s+(\d+)\s+kB/m);
+    if (!match) return null;
+    return Number.parseInt(match[1], 10) * 1024;
+  } catch {
+    return null;
+  }
+}
+
+function startGatewayMemoryWatchdog() {
+  if (gatewayWatchdogTimer) return;
+  if (!Number.isFinite(GATEWAY_MEMORY_LIMIT_MB) || GATEWAY_MEMORY_LIMIT_MB <= 0) {
+    console.log("[watchdog] gateway memory watchdog disabled (OPENCLAW_GATEWAY_MEMORY_LIMIT_MB <= 0)");
+    return;
+  }
+  const limitBytes = GATEWAY_MEMORY_LIMIT_MB * 1024 * 1024;
+  console.log(
+    `[watchdog] gateway memory watchdog: limit=${GATEWAY_MEMORY_LIMIT_MB}MB interval=${GATEWAY_MEMORY_CHECK_INTERVAL_MS}ms`,
+  );
+  gatewayWatchdogTimer = setInterval(async () => {
+    if (!gatewayProc?.pid) return;
+    const rss = readProcessRssBytes(gatewayProc.pid);
+    if (rss == null || rss < limitBytes) return;
+    const now = Date.now();
+    if (now - lastGatewayWatchdogRestartAt < GATEWAY_MEMORY_MIN_RESTART_INTERVAL_MS) return;
+    lastGatewayWatchdogRestartAt = now;
+    const mb = Math.round(rss / 1024 / 1024);
+    console.warn(
+      `[watchdog] gateway RSS=${mb}MB exceeded limit=${GATEWAY_MEMORY_LIMIT_MB}MB; restarting gateway`,
+    );
+    try {
+      await restartGateway();
+      console.log("[watchdog] gateway restarted");
+    } catch (err) {
+      console.error(`[watchdog] restartGateway failed: ${String(err)}`);
+    }
+  }, GATEWAY_MEMORY_CHECK_INTERVAL_MS);
+  gatewayWatchdogTimer.unref?.();
 }
 
 function requireSetupAuth(req, res, next) {
@@ -1641,6 +1702,10 @@ const server = app.listen(PORT, "0.0.0.0", async () => {
       console.error(`[wrapper] gateway failed to start at boot: ${String(err)}`);
     }
   }
+
+  // Start the memory watchdog regardless of whether the gateway is up yet — it
+  // no-ops until gatewayProc.pid is available and gates itself with a cool-down.
+  startGatewayMemoryWatchdog();
 });
 
 server.on("upgrade", async (req, socket, head) => {
