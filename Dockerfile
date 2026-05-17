@@ -24,7 +24,7 @@ WORKDIR /openclaw
 # setting OPENCLAW_GIT_REF in the environment will override this default.
 # We resolve it with `git checkout` rather than `git clone --branch` so commit
 # SHAs also work, not just branch/tag names.
-ARG OPENCLAW_GIT_REF=v2026.3.8
+ARG OPENCLAW_GIT_REF=v2026.5.12
 RUN set -eux; \
   git clone https://github.com/openclaw/openclaw.git .; \
   git checkout "${OPENCLAW_GIT_REF}"; \
