@@ -108,6 +108,20 @@ python3 -m venv /data/venv || true
 mkdir -p /data/npm /data/npm-cache /data/pnpm /data/pnpm-store
 ```
 
+## Cost: gateway memory watchdog
+
+The OpenClaw gateway is a long-running Node process and its RSS can drift up
+over time. On Railway, sustained memory directly drives cost, so the wrapper
+recycles the gateway subprocess when its RSS exceeds a configurable budget.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `OPENCLAW_GATEWAY_MEMORY_LIMIT_MB` | `1536` | RSS threshold (MB) above which the gateway is restarted. Set to `0` to disable. |
+| `OPENCLAW_GATEWAY_MEMORY_CHECK_INTERVAL_MS` | `60000` | Poll interval (ms). |
+
+A 5-minute cool-down between restarts prevents thrash when the leak grows
+faster than the gateway can warm up.
+
 ## Troubleshooting
 
 ### “disconnected (1008): pairing required” / dashboard health offline
